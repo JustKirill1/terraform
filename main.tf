@@ -8,17 +8,27 @@ data "vkcs_images_image" "compute" {
 }
 
 resource "vkcs_compute_keypair" "terraform_key" {
-  name       = var.key_pair_name
-  public_key = file(var.public_key_path)
+  name       = "terraform-keypair"
+  public_key = file("~/.ssh/id_rsa.pub")
+}
+
+# Ресурс для плавающего IP первого инстанса
+resource "vkcs_networking_floatingip" "fip_1" {
+  pool = "ext-net"
+}
+
+# Ресурс для плавающего IP второго инстанса
+resource "vkcs_networking_floatingip" "fip_2" {
+  pool = "ext-net"
 }
 
 resource "vkcs_compute_instance" "terraform_instance_1" {
   name               = "ITHUBterraforubuntu1-Mokhov"
   image_id           = data.vkcs_images_image.compute.id
-  flavor_id          = var.compute_flavor
-  key_pair           = vkcs_compute_keypair.terraform_key.name
+  flavor_id          = "467c1b72-a6a2-4375-9cca-078cdc5bfdde"
   security_group_ids = [vkcs_networking_secgroup.main_sg.id]
   availability_zone  = "MS1"
+  key_pair           = vkcs_compute_keypair.terraform_key.name
 
   block_device {
     uuid                  = data.vkcs_images_image.compute.id
@@ -30,7 +40,8 @@ resource "vkcs_compute_instance" "terraform_instance_1" {
   }
 
   network {
-    uuid = vkcs_networking_network.terraform_network.id
+    uuid        = vkcs_networking_network.terraform_network.id
+    fixed_ip_v4 = "192.168.254.100"
   }
 
   user_data = <<-EOF
@@ -38,20 +49,24 @@ resource "vkcs_compute_instance" "terraform_instance_1" {
     users:
       - name: ubuntu
         sudo: ALL=(ALL) NOPASSWD:ALL
-        groups: users, admin
-        shell: /bin/bash
         ssh-authorized-keys:
-          - ${file(var.public_key_path)}
+          - ${file("~/.ssh/id_rsa.pub")}
     EOF
+}
+
+# Привязка плавающего IP к первому инстансу
+resource "vkcs_compute_floatingip_associate" "fip_assoc_1" {
+  floating_ip = vkcs_networking_floatingip.fip_1.address
+  instance_id = vkcs_compute_instance.terraform_instance_1.id
 }
 
 resource "vkcs_compute_instance" "terraform_instance_2" {
   name               = "ITHUBterraforubuntu2-Mokhov"
   image_id           = data.vkcs_images_image.compute.id
-  flavor_id          = var.compute_flavor
-  key_pair           = vkcs_compute_keypair.terraform_key.name
+  flavor_id          = "467c1b72-a6a2-4375-9cca-078cdc5bfdde"
   security_group_ids = [vkcs_networking_secgroup.main_sg.id]
   availability_zone  = "GZ1"
+  key_pair           = vkcs_compute_keypair.terraform_key.name
 
   block_device {
     uuid                  = data.vkcs_images_image.compute.id
@@ -63,7 +78,8 @@ resource "vkcs_compute_instance" "terraform_instance_2" {
   }
 
   network {
-    uuid = vkcs_networking_network.terraform_network.id
+    uuid        = vkcs_networking_network.terraform_network.id
+    fixed_ip_v4 = "192.168.254.200"
   }
 
   user_data = <<-EOF
@@ -71,23 +87,29 @@ resource "vkcs_compute_instance" "terraform_instance_2" {
     users:
       - name: ubuntu
         sudo: ALL=(ALL) NOPASSWD:ALL
-        groups: users, admin
-        shell: /bin/bash
         ssh-authorized-keys:
-          - ${file(var.public_key_path)}
+          - ${file("~/.ssh/id_rsa.pub")}
     EOF
+}
+
+# Привязка плавающего IP ко второму инстансу
+resource "vkcs_compute_floatingip_associate" "fip_assoc_2" {
+  floating_ip = vkcs_networking_floatingip.fip_2.address
+  instance_id = vkcs_compute_instance.terraform_instance_2.id
 }
 
 output "instance_1_info" {
   value = {
-    host_name = vkcs_compute_instance.terraform_instance_1.name
-    ip        = vkcs_compute_instance.terraform_instance_1.access_ip_v4
+    host_name  = vkcs_compute_instance.terraform_instance_1.name
+    private_ip = vkcs_compute_instance.terraform_instance_1.network[0].fixed_ip_v4
+    public_ip  = vkcs_networking_floatingip.fip_1.address
   }
 }
 
 output "instance_2_info" {
   value = {
-    host_name = vkcs_compute_instance.terraform_instance_2.name
-    ip        = vkcs_compute_instance.terraform_instance_2.access_ip_v4
+    host_name  = vkcs_compute_instance.terraform_instance_2.name
+    private_ip = vkcs_compute_instance.terraform_instance_2.network[0].fixed_ip_v4
+    public_ip  = vkcs_networking_floatingip.fip_2.address
   }
 }

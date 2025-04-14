@@ -1,18 +1,31 @@
-variable "compute_flavor" {
-  type = string
-  default = "467c1b72-a6a2-4375-9cca-078cdc5bfdde"
+variable "vkcs_username" {
+  type        = string
+  description = "login"
 }
+
+variable "vkcs_project_id" {
+  type        = string
+  sensitive   = true
+  description = "API"
+}
+
 variable "key_pair_name" {
-  type = string
-  default = "keypair-terraform"
-}
-variable "vkcs_password" {
-  type      = string
-  sensitive = true
-  description = "Password for VK Cloud account" # пароль убран в отдельный файл!
+  type    = string
+  default = "vk-cloud-key"
 }
 
 variable "public_key_path" {
   type    = string
-  default = "~/.ssh/id_rsa.pub"
+  default = "~/terraform_clouds/vk_clouds.pub"
+}
+
+variable "compute_flavor" { #NE MENAY
+  type    = string
+  default = "467c1b72-a6a2-4375-9cca-078cdc5bfdde"
+}
+
+variable "vkcs_password" {
+  type        = string
+  sensitive   = true
+  description = "Password"
 }

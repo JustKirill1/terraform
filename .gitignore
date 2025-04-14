@@ -1,1 +1,5 @@
 terraform.tfvars
+vk_clouds
+vk_clouds.pub
+terrraform.tfstate
+
